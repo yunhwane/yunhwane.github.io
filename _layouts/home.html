@@ -1,18 +1,39 @@
 ---
 layout: default
+hero: true
 ---
 
-<section class="hero">
-  <div class="hero-content">
-    <h1 class="hero-title">{{ site.title }}</h1>
-    <div class="hero-divider"></div>
-    <p class="hero-desc">{{ site.description }}</p>
+<nav class="category-filter">
+  <div class="filter-group">
+    <span class="filter-label">Category</span>
+    <button class="category-tab active" data-category="all">전체({{ site.posts.size }})</button>
+    {% assign categories = site.posts | map: "categories" | flatten | uniq | sort %}
+    {% for cat in categories %}
+      {% assign cat_count = 0 %}
+      {% for post in site.posts %}
+        {% if post.categories contains cat %}{% assign cat_count = cat_count | plus: 1 %}{% endif %}
+      {% endfor %}
+    <button class="category-tab" data-category="{{ cat }}">{{ cat }}({{ cat_count }})</button>
+    {% endfor %}
   </div>
-</section>
+  <div class="filter-group">
+    <span class="filter-label">Tag</span>
+    <div class="tag-list">
+      {% assign tags = site.posts | map: "tags" | flatten | uniq | sort %}
+      {% for t in tags %}
+        {% assign tag_count = 0 %}
+        {% for post in site.posts %}
+          {% if post.tags contains t %}{% assign tag_count = tag_count | plus: 1 %}{% endif %}
+        {% endfor %}
+      <button class="tag-tab" data-tag="{{ t }}">#{{ t }}({{ tag_count }})</button>
+      {% endfor %}
+    </div>
+  </div>
+</nav>
 
 <section class="post-list">
   {% for post in site.posts %}
-  <article class="post-card">
+  <article class="post-card" data-category="{{ post.categories | join: ' ' }}" data-tags="{{ post.tags | join: ' ' }}">
     <a href="{{ post.url | relative_url }}" class="post-card-link">
       {% if post.thumbnail %}
       <div class="post-card-thumbnail">
@@ -44,3 +65,45 @@ layout: default
   </article>
   {% endfor %}
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var categoryTabs = document.querySelectorAll('.category-tab');
+  var tagTabs = document.querySelectorAll('.tag-tab');
+  var cards = document.querySelectorAll('.post-card');
+  var activeCategory = 'all';
+  var activeTag = null;
+
+  function filterCards() {
+    cards.forEach(function (card) {
+      var catMatch = activeCategory === 'all' || card.getAttribute('data-category').indexOf(activeCategory) !== -1;
+      var tagMatch = !activeTag || card.getAttribute('data-tags').indexOf(activeTag) !== -1;
+      card.style.display = (catMatch && tagMatch) ? '' : 'none';
+    });
+  }
+
+  categoryTabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      activeCategory = this.getAttribute('data-category');
+      categoryTabs.forEach(function (t) { t.classList.remove('active'); });
+      this.classList.add('active');
+      filterCards();
+    });
+  });
+
+  tagTabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var clicked = this.getAttribute('data-tag');
+      if (activeTag === clicked) {
+        activeTag = null;
+        this.classList.remove('active');
+      } else {
+        tagTabs.forEach(function (t) { t.classList.remove('active'); });
+        activeTag = clicked;
+        this.classList.add('active');
+      }
+      filterCards();
+    });
+  });
+});
+</script>

@@ -5,6 +5,15 @@
 </head>
 <body>
   {% include header.html %}
+  {% if page.hero %}
+  <section class="hero">
+    <div class="hero-content">
+      <h1 class="hero-title">{{ site.title }}</h1>
+      <div class="hero-divider"></div>
+      <p class="hero-desc">{{ site.description }}</p>
+    </div>
+  </section>
+  {% endif %}
   <main class="site-content">
     <div class="content-inner">
       {{ content }}

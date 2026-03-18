@@ -162,13 +162,97 @@ img {
 }
 
 /* =============================================
+   Category & Tag Filter
+   ============================================= */
+.category-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 24px;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  min-width: 64px;
+  flex-shrink: 0;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.category-tab {
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.category-tab:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.category-tab.active {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.tag-tab {
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-light);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.tag-tab:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.tag-tab.active {
+  color: var(--primary);
+  background: var(--primary-light);
+  border-color: var(--primary);
+  font-weight: 600;
+}
+
+/* =============================================
    Post Card List
    ============================================= */
 .post-list {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding-top: 32px;
+  padding-top: 24px;
   padding-bottom: 80px;
 }
 
@@ -604,6 +688,21 @@ img {
   .nav-link {
     padding: 6px 10px;
     font-size: 0.85rem;
+  }
+
+  .category-filter {
+    padding: 20px 16px;
+    gap: 12px;
+  }
+
+  .filter-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .filter-label {
+    min-width: auto;
   }
 }
 
