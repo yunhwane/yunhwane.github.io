@@ -23,6 +23,9 @@ permalink: /:categories/:title/
 # Pagination
 show_excerpts: true
 
+# Future posts
+future: true
+
 # Exclude
 exclude:
   - Gemfile

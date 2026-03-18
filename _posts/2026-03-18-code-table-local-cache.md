@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "코드 테이블 로컬 캐시 사용하기"
-date: 2026-03-18
+date: 2026-03-18 18:00:00 +0900
 categories: [backend]
 tags: [spring-boot, caffeine, cache, java]
 ---
