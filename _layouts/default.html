@@ -7,7 +7,9 @@
   {% include header.html %}
   {% if page.hero %}
   <section class="hero">
+    <div class="hero-bg"></div>
     <div class="hero-content">
+      <p class="hero-greeting">Welcome to</p>
       <h1 class="hero-title">{{ site.title }}</h1>
       <div class="hero-divider"></div>
       <p class="hero-desc">{{ site.description }}</p>
@@ -15,7 +17,7 @@
   </section>
   {% endif %}
   <main class="site-content">
-    <div class="content-inner">
+    <div class="content-inner{% if page.layout == 'post' %} content-inner--wide{% endif %}">
       {{ content }}
     </div>
   </main>
