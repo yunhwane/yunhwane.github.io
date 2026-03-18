@@ -1,0 +1,12 @@
+<header class="site-header">
+  <div class="header-inner">
+    <a class="site-logo" href="{{ '/' | relative_url }}">
+      <span class="logo-text">{{ site.title }}</span>
+    </a>
+    <nav class="site-nav">
+      <a href="{{ '/' | relative_url }}" class="nav-link{% if page.url == '/' %} active{% endif %}">Posts</a>
+      <a href="{{ '/about/' | relative_url }}" class="nav-link{% if page.url == '/about/' %} active{% endif %}">About</a>
+      <a href="https://github.com/yunhwane" class="nav-link" target="_blank">GitHub</a>
+    </nav>
+  </div>
+</header>

@@ -6,16 +6,12 @@ baseurl: ""
 # Author
 author:
   name: yunhwane
+  bio: "개발하면서 배운 것들을 기록합니다."
 
 # Build settings
-theme: minima
 plugins:
   - jekyll-feed
   - jekyll-seo-tag
-
-# Minima theme settings
-minima:
-  skin: dark
 
 # Markdown
 markdown: kramdown
