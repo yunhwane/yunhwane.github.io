@@ -1,0 +1,34 @@
+title: Yunhwan's Dev Blog
+description: 개발과 기술에 대한 기록
+url: "https://yunhwane.github.io"
+baseurl: ""
+
+# Author
+author:
+  name: yunhwane
+
+# Build settings
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+# Minima theme settings
+minima:
+  skin: dark
+
+# Markdown
+markdown: kramdown
+highlighter: rouge
+
+# Permalink
+permalink: /:categories/:title/
+
+# Pagination
+show_excerpts: true
+
+# Exclude
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
