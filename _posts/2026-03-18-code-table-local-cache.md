@@ -64,7 +64,7 @@ Redis를 사용하지 않는 환경이라는 제약도 있었지만, 코드 테�
 Java 진영의 로컬 캐시 라이브러리 중 **Caffeine**을 선택한 이유는 다음과 같습니다.
 
 - **성능**: Window TinyLFU 알고리즘 기반으로 Guava Cache 대비 높은 히트율
-- **비동기 지원**: `AsyncLoadingCache`를 제공하여 캐시 로딩 시 블로킹을 최소화
+- **자동 로딩**: `LoadingCache`를 제공하여 캐시 미스 시 자동으로 데이터를 로딩
 - **Spring 공식 지원**: `spring-boot-starter-cache`에서 Caffeine을 공식 CacheManager로 지원
 - **풍부한 설정**: 만료 정책, 최대 크기, 통계 수집 등을 세밀하게 제어 가능
 
@@ -94,13 +94,13 @@ public enum CacheType {
         this.refreshDuration = refreshDuration;
     }
 
-    public <K, V> AsyncLoadingCache<K, V> createAsyncLoadingCache(
-            AsyncCacheLoader<K, V> loader) {
+    public <K, V> LoadingCache<K, V> createLoadingCache(
+            CacheLoader<K, V> loader) {
         return Caffeine.newBuilder()
                 .maximumSize(maxSize)
                 .refreshAfterWrite(refreshDuration)
                 .recordStats()
-                .buildAsync(loader);
+                .build(loader);
     }
 }
 ```
@@ -116,20 +116,18 @@ public enum CacheType {
 public class CachedCodeRepository {
 
     private final CodeRepository codeRepository;
-    private AsyncLoadingCache<String, Code> cache;
+    private LoadingCache<String, Code> cache;
 
     @PostConstruct
     public void init() {
-        this.cache = CacheType.CODE.createAsyncLoadingCache(
-            (key, executor) -> CompletableFuture.supplyAsync(() -> {
-                String[] parts = key.split("::", 2);
-                if (parts.length != 2) return null;
-                return codeRepository
-                        .findByGroupNameAndCodeName(parts[0], parts[1])
-                        .map(CodeEntity::toDomain)
-                        .orElse(null);
-            }, executor)
-        );
+        this.cache = CacheType.CODE.createLoadingCache(key -> {
+            String[] parts = key.split("::", 2);
+            if (parts.length != 2) return null;
+            return codeRepository
+                    .findByGroupNameAndCodeName(parts[0], parts[1])
+                    .map(CodeEntity::toDomain)
+                    .orElse(null);
+        });
 
         warmUp();
         log.info("Code cache initialized - maxSize: {}, refresh: {}m",
@@ -140,7 +138,7 @@ public class CachedCodeRepository {
     public Code findByGroupAndName(String groupName, String codeName) {
         if (codeName == null || codeName.isBlank()) return null;
         String key = groupName + "::" + codeName;
-        return cache.synchronous().get(key);
+        return cache.get(key);
     }
 }
 ```
@@ -149,35 +147,35 @@ public class CachedCodeRepository {
 
 **키 설계**: `그룹명::코드명` 형태의 복합 키를 사용합니다. 예를 들어 `GENDER::MALE` 처럼 하나의 문자열로 코드를 식별합니다.
 
-**AsyncLoadingCache**: 캐시 미스가 발생하면 자동으로 `asyncLoad`를 호출하여 DB에서 로딩합니다. 같은 키에 대해 동시에 여러 요청이 들어와도 **한 번만 로딩**됩니다(thundering herd 방지).
+**LoadingCache**: 캐시 미스가 발생하면 `CacheLoader`를 호출하여 자동으로 DB에서 로딩합니다. 같은 키에 대해 동시에 여러 요청이 들어와도 **한 번만 로딩**됩니다(thundering herd 방지).
 
-**synchronous().get()**: 비동기 캐시지만 조회 시에는 동기적으로 결과를 가져옵니다. 캐시 히트 시 즉시 반환되고, 미스 시에만 블로킹됩니다.
+**왜 `AsyncLoadingCache`가 아닌가?**: Caffeine은 `AsyncLoadingCache`도 제공하지만, 이 케이스에서는 동기 `LoadingCache`로 충분합니다. warm-up으로 미리 전체 데이터를 적재하기 때문에 실제 운영 중 캐시 미스가 거의 발생하지 않고, Spring MVC 기반이라 `CompletableFuture`를 리액티브하게 활용할 일도 없습니다. `AsyncLoadingCache`는 WebFlux 같은 리액티브 스택에서 non-blocking 파이프라인에 태울 때 더 적합합니다.
 
 ### Warm-Up: 애플리케이션 시작 시 캐시 채우기
 
 ```java
 public void warmUp() {
-    Map<String, CompletableFuture<Code>> newEntries = new HashMap<>();
+    Map<String, Code> newEntries = new HashMap<>();
 
     List<String> groupNames = codeRepository.findAllGroupNames();
     for (String groupName : groupNames) {
         List<CodeEntity> codes = codeRepository.findByGroupName(groupName);
         for (CodeEntity entity : codes) {
             String key = groupName + "::" + entity.getCodeName();
-            newEntries.put(key, CompletableFuture.completedFuture(entity.toDomain()));
+            newEntries.put(key, entity.toDomain());
         }
     }
 
     // 삭제된 코드는 캐시에서 제거
-    Set<String> currentKeys = cache.synchronous().asMap().keySet();
+    Set<String> currentKeys = cache.asMap().keySet();
     Set<String> newKeys = newEntries.keySet();
     currentKeys.stream()
             .filter(key -> !newKeys.contains(key))
-            .forEach(key -> cache.synchronous().invalidate(key));
+            .forEach(cache::invalidate);
 
     // 새로운 데이터로 캐시 갱신
-    newEntries.forEach(cache::put);
-    log.debug("Code cache warmed up: {} items", cache.synchronous().estimatedSize());
+    cache.putAll(newEntries);
+    log.debug("Code cache warmed up: {} items", cache.estimatedSize());
 }
 ```
 
@@ -224,7 +222,7 @@ public class CacheRefreshScheduler {
 [API 요청]
     └─ findByGroupAndName("GENDER", "MALE")
         └─ cache hit → 즉시 반환 (ns 단위)
-        └─ cache miss → asyncLoad → DB 조회 → 캐시 적재 → 반환
+        └─ cache miss → CacheLoader → DB 조회 → 캐시 적재 → 반환
 
 [3분마다]
     └─ @Scheduled → warmUp()
@@ -243,11 +241,11 @@ public class CacheRefreshScheduler {
 
 ### 3. Cache Stampede 방지
 
-`AsyncLoadingCache`는 같은 키에 대한 동시 요청을 하나로 합쳐줍니다. 하지만 `warmUp()` 시 대량 DB 조회가 발생하므로, 코드 데이터가 매우 많다면 warm-up 자체의 부하도 고려해야 합니다.
+`LoadingCache`는 같은 키에 대한 동시 요청을 하나로 합쳐줍니다. 하지만 `warmUp()` 시 대량 DB 조회가 발생하므로, 코드 데이터가 매우 많다면 warm-up 자체의 부하도 고려해야 합니다.
 
 ### 4. null 처리
 
-존재하지 않는 코드를 조회하면 `null`이 캐시에 저장될 수 있습니다. Caffeine은 기본적으로 null value를 허용하지 않으므로 `asyncLoad`에서 null을 반환하면 해당 키는 캐시되지 않습니다. 매번 DB를 조회하는 negative lookup이 발생할 수 있으니, 의도적으로 빈 객체를 반환하는 것도 고려해볼 수 있습니다.
+존재하지 않는 코드를 조회하면 `null`이 캐시에 저장될 수 있습니다. Caffeine은 기본적으로 null value를 허용하지 않으므로 `CacheLoader`에서 null을 반환하면 해당 키는 캐시되지 않습니다. 매번 DB를 조회하는 negative lookup이 발생할 수 있으니, 의도적으로 빈 객체를 반환하는 것도 고려해볼 수 있습니다.
 
 ### 5. 갱신 실패 시 기존 캐시 유지
 
@@ -255,7 +253,7 @@ public class CacheRefreshScheduler {
 
 ## 마무리
 
-코드 테이블처럼 **변경이 적고, 크기가 작고, 조회가 잦은** 데이터에는 로컬 캐시가 효과적입니다. Caffeine의 `AsyncLoadingCache`와 주기적 warm-up을 조합하면, 거의 제로에 가까운 지연시간으로 코드를 조회하면서도 데이터 정합성을 유지할 수 있습니다.
+코드 테이블처럼 **변경이 적고, 크기가 작고, 조회가 잦은** 데이터에는 로컬 캐시가 효과적입니다. Caffeine의 `LoadingCache`와 주기적 warm-up을 조합하면, 거의 제로에 가까운 지연시간으로 코드를 조회하면서도 데이터 정합성을 유지할 수 있습니다.
 
 핵심을 정리하면 다음과 같습니다.
 
